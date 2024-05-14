@@ -38,7 +38,7 @@ pub struct TspMove {
 // todo: naive, 2opt
 
 impl LocalMove<TspSolution> for TspMove {
-    fn do_random_move(solution: TspSolution) -> TspSolution {
+    fn do_random_move(&mut self, solution: &mut TspSolution) {
         todo!()
     }
 }
