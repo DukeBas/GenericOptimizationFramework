@@ -5,4 +5,5 @@ Todo:
 - Better description
 - How to get started
 - Explanation of how to use
-- Pick a licesne
+- Pick a license
+- Add example(s)
