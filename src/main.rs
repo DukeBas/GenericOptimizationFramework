@@ -1,44 +1,27 @@
-struct TspInstance {
-    points: Vec<(f64, f64)>,
-}
+mod examples;
+mod heuristics;
+mod solution;
 
-struct TspSolution {
-    instance: &TspInstance,
-    perm: Vec<usize>,
-    cost: Option<f64>,
-}
+use crate::heuristics::simulated_annealing::simulated_annealing;
 
-impl TspSolution {
-    pub fn recompute_cost(&mut self) -> f64 {}
-}
+use crate::examples::tsp::{TspInstanceReader, TspMove, TspSolution};
+use crate::solution::InstanceReader;
 
-impl Solution for TspSolution {
-    pub fn get_cost(&mut self) -> f64 {
-        if let Some(c) = &self.cost {
-            c
-        } else {
-            self.recompute_cost()
-        }
-    }
-}
-
-struct TspMove {
-    i: usize,
-    j: usize,
-}
-
-impl LocalMove for TspMove {
-    pub fn get_random(solution: &T) -> LocalMove {}
-    pub fn get_all(solution: &T) -> impl Iterator<Self> {}
-    pub fn apply(&self, solution: &mut T) {}
-    pub fn undo(&self, solution: &mut T) {}
-}
+/// Path to the folder containing the problem instances
+const DATASET_PATH: &str = "input/";
 
 fn main() {
     println!("Hello, world!");
 
-    // select problem
-    // select dataset
+    // select dataset, todo, for now just hardcode a path
+    let dataset_path = DATASET_PATH.to_string() + "test.in";
+    println!("Reading dataset from {}", dataset_path);
 
     // Select algo -> SA + move
+    let reader = TspInstanceReader {};
+
+    // Always SA for now
+    let mut solution = reader.read_instance(&dataset_path);
+
+    simulated_annealing::<TspMove, TspSolution>(&mut solution, 1000);
 }
