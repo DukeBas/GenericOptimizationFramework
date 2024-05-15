@@ -23,5 +23,5 @@ fn main() {
     // Always SA for now
     let mut solution = reader.read_instance(&dataset_path);
 
-    simulated_annealing::<TspMove, TspSolution>(&mut solution, 1000);
+    // simulated_annealing::<TspMove, TspSolution>(&mut solution, 1000);
 }

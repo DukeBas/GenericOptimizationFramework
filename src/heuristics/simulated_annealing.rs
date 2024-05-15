@@ -5,7 +5,6 @@ use crate::solution::{LocalMove, Solution};
 /// Cools after every iteration.
 pub fn simulated_annealing<M, T>(
     solution: &mut T,
-    local_move: &mut M,
     smallest_cost_difference: f64,
     num_iterations: u32,
     num_iterations_temperature_determining: u32,
@@ -19,7 +18,7 @@ pub fn simulated_annealing<M, T>(
     let mut total_cost_diff = 0.0;
     for _ in 0..num_iterations_temperature_determining {
         old_cost = solution.get_cost();
-        local_move.do_random_move(solution);
+        M::do_random_move(solution);
         let cost_diff = solution.get_cost() - old_cost;
         total_cost_diff += cost_diff.abs();
     }

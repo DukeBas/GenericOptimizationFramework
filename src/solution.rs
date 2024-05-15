@@ -4,7 +4,7 @@ pub trait Solution {
 }
 
 pub trait LocalMove<T: Solution> {
-    fn do_random_move(&mut self, solution: &mut T);
+    fn do_random_move(solution: &mut T);
 
     // todo: // fn get_all(solution: &T) -> impl Iterator<Self>;
     // fn apply(&self, solution: &mut T);
