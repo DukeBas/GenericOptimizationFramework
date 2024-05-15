@@ -4,14 +4,12 @@ pub trait Solution {
 }
 
 pub trait LocalMove<T: Solution> {
+    /// Modifies the solution in place to a random neighboring solution.
+    /// For efficiency, the move should update the cost function in the process instead of recomputing it from scratch.
     fn do_random_move(solution: &mut T);
-
-    // todo: // fn get_all(solution: &T) -> impl Iterator<Self>;
-    // fn apply(&self, solution: &mut T);
-    // fn undo(&self, solution: &mut T);
 }
 
 pub trait InstanceReader<T : Solution> {
-    /// Reads an instance from a file
+    /// Reads an instance from a file. Note that an initial (random/greedy) solution should be generated as well.
     fn read_instance(&self, file_path: &str) -> T;
 }

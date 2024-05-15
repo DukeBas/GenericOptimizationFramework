@@ -33,6 +33,9 @@ pub fn simulated_annealing<M, T>(
     // todo: determine cooling schedule based on input
     let mut temperature = starting_temperature;
 
+    println!("Starting temperature: {}, avg cost diff {}", starting_temperature, avg_cost_diff);
+    println!("Ending temperature: {}", ending_temperature);
+
 }
 
 fn metropolis_rule() -> f64 {
