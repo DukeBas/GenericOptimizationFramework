@@ -11,10 +11,14 @@ pub struct TspInstance {
     points: Vec<(f64, f64)>,
 }
 
+#[derive(Clone)]
 pub struct TspSolution {
     instance: Arc<TspInstance>,
     perm: Vec<usize>,
     cost: f64,
+    // These two below exact meaning depends on the move.
+    last_swap: (usize, usize),
+    last_cost: f64,
 }
 
 impl TspSolution {
@@ -30,9 +34,15 @@ impl TspSolution {
     }
 
     /// Get the length of the edge between the i-th and (i+1)-th city in the permutation
-    fn get_edge_length(&self, i: usize) -> f64 {
+    fn get_edge_length_next(&self, i: usize) -> f64 {
         let (x1, y1) = self.instance.points[self.perm[i]];
         let (x2, y2) = self.instance.points[self.perm[(i + 1) % self.perm.len()]];
+        ((x1 - x2).powi(2) + (y1 - y2).powi(2)).sqrt()
+    }
+
+    fn get_edge_length_prev(&self, i: usize) -> f64 {
+        let (x1, y1) = self.instance.points[self.perm[i]];
+        let (x2, y2) = self.instance.points[self.perm[(i + self.perm.len() - 1) % self.perm.len()]];
         ((x1 - x2).powi(2) + (y1 - y2).powi(2)).sqrt()
     }
 }
@@ -51,36 +61,64 @@ impl LocalMove<TspSolution> for TspNaiveMove {
         let j = rand::random::<usize>() % solution.perm.len();
         solution.perm.swap(i, j);
 
+        // Update last swap
+        solution.last_swap = (i, j);
+
         // Update cost by recomputing it from scratch
         // Not efficient!!!
         solution.recompute_cost_from_scratch();
+
+        // Update last cost
+        solution.last_cost = solution.cost;
+    }
+
+    fn undo_last_move(solution: &mut TspSolution) {
+        // Reverse the swap
+        let (i, j) = solution.last_swap;
+        solution.perm.swap(i, j);
+
+        // Update cost by recomputing it from scratch
+        solution.cost = solution.last_cost;
     }
 }
 
-pub struct Tsp2OptMove;
+pub struct Tsp2OptMove; // Note: currently not _really_ 2Opt as it does not check all possible swaps
 impl LocalMove<TspSolution> for Tsp2OptMove {
     fn do_random_move(solution: &mut TspSolution) {
         // Reverse a random subsequence of cities
         let i = rand::random::<usize>() % solution.perm.len();
         let j = rand::random::<usize>() % solution.perm.len();
 
+        // Make sure i < j
+        let (i, j) = if i < j { (i, j) } else { (j, i) };
+
         // Get lengths of edges to be removed
-        let removed_i = solution.get_edge_length(i);
-        let removed_j = solution.get_edge_length(j);
+        let removed_i = solution.get_edge_length_next(i);
+        let removed_j = solution.get_edge_length_prev(j);
 
         // Do the swap
-        if i > j {
-            solution.perm[i..j].reverse();
-        } else {
-            solution.perm[j..i].reverse();
-        }
+        solution.perm[i..j].reverse();
 
         // Get lengths of edges that were added
-        let added_i = solution.get_edge_length(i);
-        let added_j = solution.get_edge_length(j);
+        let added_i = solution.get_edge_length_next(i);
+        let added_j = solution.get_edge_length_prev(j);
+
+        // Update last swap and cost
+        solution.last_swap = (i, j);
+        solution.last_cost = solution.cost;
 
         // Update cost
-        solution.cost += added_i + added_j - removed_i - removed_j;
+        // solution.cost += added_i + added_j - removed_i - removed_j;
+        solution.cost = solution.recompute_cost_from_scratch(); // todo
+    }
+
+    fn undo_last_move(solution: &mut TspSolution) {
+        // Reverse the swap
+        let (i, j) = solution.last_swap;
+        solution.perm[i..j].reverse();
+
+        // Update cost
+        solution.cost = solution.last_cost;
     }
 }
 
@@ -112,6 +150,8 @@ impl InstanceReader<TspSolution> for TspInstanceReader {
             instance: Arc::new(TspInstance { points }),
             perm,
             cost: 0.0, // will get overriden by recompute_cost_from_scratch
+            last_swap: (0, 0),
+            last_cost: 0.0,
         };
         solution.recompute_cost_from_scratch();
         solution

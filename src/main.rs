@@ -4,7 +4,7 @@ mod solution;
 
 use crate::heuristics::simulated_annealing::simulated_annealing;
 
-use crate::examples::tsp::{TspInstanceReader, TspNaiveMove, TspSolution};
+use crate::examples::tsp::{Tsp2OptMove, TspInstanceReader, TspNaiveMove, TspSolution};
 use crate::solution::InstanceReader;
 
 /// Path to the folder containing the problem instances
@@ -14,7 +14,7 @@ fn main() {
     println!("Hello, world!");
 
     // select dataset, todo, for now just hardcode a path
-    let dataset_path = DATASET_PATH.to_string() + "tsp_test.in";
+    let dataset_path = DATASET_PATH.to_string() + "tsp_hard.in";
     println!("Reading dataset from {}", dataset_path);
 
     // Select algo -> SA + move
@@ -23,11 +23,11 @@ fn main() {
     // Always SA for now
     let mut solution = reader.read_instance(&dataset_path);
 
-    simulated_annealing::<TspNaiveMove, TspSolution>(
+    simulated_annealing::<Tsp2OptMove, TspSolution>(
         &mut solution,
         1.0,
-        10000,
-        500,
+        1_000_000,
+        1000,
         crate::heuristics::simulated_annealing::CoolingSchedule::Geometric,
     );
 }
