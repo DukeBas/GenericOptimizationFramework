@@ -6,7 +6,12 @@ const STARTING_ACCEPTANCE_PROBABILITY_GREEDY: f64 = 0.2;
 const ENDING_ACCEPTANCE_PROBABILITY: f64 = 10e-6;
 
 /// How often to report the status of the algorithm
-const REPORT_STATUS_TIMES: u32 = 20;
+const REPORT_STATUS_EVERY_ITERATION: u32 = 1_000_000;
+
+/// How many status checks need to be the same before early returning
+const EARLY_RETURN_TIMES: u32 = 5;
+
+const FLOAT_PRECISION: f64 = 10e-6;
 
 // TODO add some mechanism to auto save best every so often
 /// Simulated annealing algorithm, automatically determines temperature.
@@ -64,8 +69,9 @@ pub fn simulated_annealing<M, T>(
         num_iterations,
     );
 
-    // Determine at which iteration to start reporting the status
-    let report_status_iter = num_iterations / REPORT_STATUS_TIMES;
+    // Setup early return
+    let mut early_return_counter = 0;
+    let mut last_status_check_cost = solution.get_cost();
 
     // Print some info
     println!(
@@ -105,14 +111,30 @@ pub fn simulated_annealing<M, T>(
         previous_cost = new_cost;
 
         // print cost every so often
-        if it % report_status_iter == 0 {
+        if it % REPORT_STATUS_EVERY_ITERATION == 0 {
             let percentage = (it as f64 / num_iterations as f64) * 100.0;
             println!(
-                " {:.0}% Cost: {:.4} Temp: {:.4}",
+                " {:.0}% - Best cost: {:.4} Current cost: {:.4} Temp: {:.4} ",
                 percentage,
-                solution.get_cost(),
-                temperature
+                best_solution.get_cost(),
+                solution.get_cost(),                
+                temperature,
             );
+
+            // Update early return counter
+            if (solution.get_cost() - last_status_check_cost).abs() < FLOAT_PRECISION {
+                early_return_counter += 1;
+
+                // Early return if the same solution is found multiple times
+                if early_return_counter >= EARLY_RETURN_TIMES {
+                    let percentage = (it as f64 / num_iterations as f64) * 100.0;
+                    println!("Early return at iteration {} ({:.0}% done)", it, percentage);
+                    break;
+                }
+            } else {
+                early_return_counter = 0;
+                last_status_check_cost = solution.get_cost();
+            }
         }
 
         // Update best solution

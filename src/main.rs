@@ -11,8 +11,6 @@ use crate::solution::InstanceReader;
 const DATASET_PATH: &str = "input/";
 
 fn main() {
-    println!("Hello, world!");
-
     // select dataset, todo, for now just hardcode a path
     let dataset_path = DATASET_PATH.to_string() + "tsp_hard.in";
     println!("Reading dataset from {}", dataset_path);
@@ -25,7 +23,7 @@ fn main() {
 
     simulated_annealing::<Tsp2OptMove, TspSolution>(
         &mut solution,
-        10_000_000,
+        200_000_000,
         20_000,
         crate::heuristics::simulated_annealing::CoolingSchedule::Exponential,
         false
