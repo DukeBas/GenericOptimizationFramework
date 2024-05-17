@@ -2,32 +2,66 @@ mod examples;
 mod heuristics;
 mod solution;
 
+use std::fs;
+
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::{Input, Select};
+
 use crate::heuristics::simulated_annealing::simulated_annealing;
 
 use crate::examples::tsp::{Tsp2OptMove, TspInstanceReader, TspSolution};
 use crate::solution::{InstanceReader, Solution};
 
 /// Path to the folder containing the problem instances
-const DATASET_PATH: &str = "input/";
+const DATASET_PATH: &str = "./input/";
 
-fn main() {
-    // select dataset, todo, for now just hardcode a path
-    let instance_name = "tsp_hard";
-    let dataset_path = DATASET_PATH.to_string() + instance_name + ".in";
-    println!("Reading dataset from {}", dataset_path);
+/// Problem instance reader to use
+const INSTANCE_READER: TspInstanceReader = TspInstanceReader {};
 
-    // Select algo -> SA + move
-    let reader = TspInstanceReader {};
+fn main() -> std::io::Result<()> {
+    // Read all instances from the input folder
+    let paths = fs::read_dir(DATASET_PATH)
+        .unwrap()
+        .map(|p| p.unwrap().path());
+    let paths_vec: Vec<String> = paths.map(|p| p.to_str().unwrap().to_string()).collect();
 
-    // Always SA for now
-    let mut solution = reader.read_instance(&dataset_path, Some(instance_name));
+    // Ask user which instance to run
+    let instance_selection = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Select an instance")
+        .items(&paths_vec)
+        .default(0)
+        .interact()
+        .unwrap();
+    let instance_path = &paths_vec[instance_selection];
+    let instance_name = instance_path
+        .split('/')
+        .last()
+        .unwrap()
+        .split('.')
+        .next()
+        .unwrap();
 
-    simulated_annealing::<Tsp2OptMove, TspSolution>(
-        &mut solution,
-        200_000_000,
-        20_000,
-        crate::heuristics::simulated_annealing::CoolingSchedule::Exponential,
-        false,
-    );
-    solution.write_solution("output");
+    // Ask the user for the number of iterations
+    let number_of_iterations: u32 = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Number of iterations (enter to use default)")
+        .default((500_000_000 as u32).into())
+        .interact_text()
+        .unwrap();
+
+    // Always SA for now TODO: make (list of) algo(s) configurable above
+    let mut solution = INSTANCE_READER.read_instance(&instance_path, Some(instance_name));
+
+    // Main loop, run algo until cancelled
+    loop {
+        simulated_annealing::<Tsp2OptMove, TspSolution>(
+            &mut solution,
+            number_of_iterations,
+            20_000,
+            crate::heuristics::simulated_annealing::CoolingSchedule::Exponential,
+            false,
+        );
+        solution.write_solution("output");
+    }
 }
+
+// General function to run a heuristic on a solution, should take a solution
