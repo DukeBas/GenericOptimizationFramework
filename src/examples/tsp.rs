@@ -6,8 +6,10 @@ use crate::solution;
 use rand::{seq::SliceRandom, thread_rng};
 use solution::{InstanceReader, LocalMove, Solution};
 use std::sync::Arc;
+use std::io::Write;
 
 pub struct TspInstance {
+    dataset_name: String,
     points: Vec<(f64, f64)>,
 }
 
@@ -51,6 +53,20 @@ impl Solution for TspSolution {
     fn get_cost(&mut self) -> f64 {
         self.cost
     }
+
+    fn write_solution(&self, file_location: &str) {
+        // File name will be dataset name + cost + .out
+        let file_path = format!("{}/{}-{:.4}.out", file_location, self.instance.dataset_name, self.cost); // todo make more robust
+
+        let mut file = std::fs::File::create(file_path.clone()).expect("Could not save solution to file!!!");
+        for city in &self.perm {
+            // TODO: bit of a weird way to output, indices in permutation would make more sense
+            let (x, y) = self.instance.points[*city];
+            writeln!(file, "{} {}", x, y).expect("Could not write to file!!!");
+        }    
+
+        println!("Solution written to {}", file_path);
+    }
 }
 
 pub struct TspNaiveMove;
@@ -83,7 +99,7 @@ impl LocalMove<TspSolution> for TspNaiveMove {
 }
 
 pub struct Tsp2OptMove; // Note: currently not _really_ 2Opt as it does not check all possible swaps
-impl LocalMove<TspSolution> for Tsp2OptMove { 
+impl LocalMove<TspSolution> for Tsp2OptMove {
     fn do_random_move(solution: &mut TspSolution) {
         // Reverse a random subsequence of cities
         let i = rand::random::<usize>() % solution.perm.len();
@@ -124,7 +140,7 @@ impl LocalMove<TspSolution> for Tsp2OptMove {
 
 pub struct TspInstanceReader {}
 impl InstanceReader<TspSolution> for TspInstanceReader {
-    fn read_instance(&self, file_path: &str) -> TspSolution {
+    fn read_instance(&self, file_path: &str, instance_name: Option<&str>) -> TspSolution {
         // TSP instance first reads the number of cities
         let contents = std::fs::read_to_string(file_path).expect("Could not read file");
         let mut lines = contents.lines();
@@ -147,7 +163,10 @@ impl InstanceReader<TspSolution> for TspInstanceReader {
 
         // Compute the cost of the initial solution
         let mut solution = TspSolution {
-            instance: Arc::new(TspInstance { points }),
+            instance: Arc::new(TspInstance {
+                dataset_name: instance_name.unwrap_or("unknown").to_string(),
+                points,
+            }),
             perm,
             cost: 0.0, // will get overriden by recompute_cost_from_scratch
             last_swap: (0, 0),
