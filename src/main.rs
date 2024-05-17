@@ -4,7 +4,7 @@ mod solution;
 
 use crate::heuristics::simulated_annealing::simulated_annealing;
 
-use crate::examples::tsp::{Tsp2OptMove, TspInstanceReader, TspNaiveMove, TspSolution};
+use crate::examples::tsp::{Tsp2OptMove, TspInstanceReader, TspSolution};
 use crate::solution::InstanceReader;
 
 /// Path to the folder containing the problem instances
@@ -26,6 +26,6 @@ fn main() {
         200_000_000,
         20_000,
         crate::heuristics::simulated_annealing::CoolingSchedule::Exponential,
-        false
+        false,
     );
 }

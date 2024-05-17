@@ -33,18 +33,18 @@ impl TspSolution {
         new_cost
     }
 
-    /// Get the length of the edge between the i-th and (i+1)-th city in the permutation
-    fn get_edge_length_next(&self, i: usize) -> f64 {
-        let (x1, y1) = self.instance.points[self.perm[i]];
-        let (x2, y2) = self.instance.points[self.perm[(i + 1) % self.perm.len()]];
-        ((x1 - x2).powi(2) + (y1 - y2).powi(2)).sqrt()
-    }
+    // /// Get the length of the edge between the i-th and (i+1)-th city in the permutation
+    // fn get_edge_length_next(&self, i: usize) -> f64 {
+    //     let (x1, y1) = self.instance.points[self.perm[i]];
+    //     let (x2, y2) = self.instance.points[self.perm[(i + 1) % self.perm.len()]];
+    //     ((x1 - x2).powi(2) + (y1 - y2).powi(2)).sqrt()
+    // }
 
-    fn get_edge_length_prev(&self, i: usize) -> f64 {
-        let (x1, y1) = self.instance.points[self.perm[i]];
-        let (x2, y2) = self.instance.points[self.perm[(i + self.perm.len() - 1) % self.perm.len()]];
-        ((x1 - x2).powi(2) + (y1 - y2).powi(2)).sqrt()
-    }
+    // fn get_edge_length_prev(&self, i: usize) -> f64 {
+    //     let (x1, y1) = self.instance.points[self.perm[i]];
+    //     let (x2, y2) = self.instance.points[self.perm[(i + self.perm.len() - 1) % self.perm.len()]];
+    //     ((x1 - x2).powi(2) + (y1 - y2).powi(2)).sqrt()
+    // }
 }
 
 impl Solution for TspSolution {
@@ -83,7 +83,7 @@ impl LocalMove<TspSolution> for TspNaiveMove {
 }
 
 pub struct Tsp2OptMove; // Note: currently not _really_ 2Opt as it does not check all possible swaps
-impl LocalMove<TspSolution> for Tsp2OptMove {
+impl LocalMove<TspSolution> for Tsp2OptMove { 
     fn do_random_move(solution: &mut TspSolution) {
         // Reverse a random subsequence of cities
         let i = rand::random::<usize>() % solution.perm.len();
@@ -93,15 +93,15 @@ impl LocalMove<TspSolution> for Tsp2OptMove {
         let (i, j) = if i < j { (i, j) } else { (j, i) };
 
         // Get lengths of edges to be removed
-        let removed_i = solution.get_edge_length_next(i);
-        let removed_j = solution.get_edge_length_prev(j);
+        // let removed_i = solution.get_edge_length_next(i);
+        // let removed_j = solution.get_edge_length_prev(j);
 
         // Do the swap
         solution.perm[i..j].reverse();
 
         // Get lengths of edges that were added
-        let added_i = solution.get_edge_length_next(i);
-        let added_j = solution.get_edge_length_prev(j);
+        // let added_i = solution.get_edge_length_next(i);
+        // let added_j = solution.get_edge_length_prev(j);
 
         // Update last swap and cost
         solution.last_swap = (i, j);
@@ -109,7 +109,7 @@ impl LocalMove<TspSolution> for Tsp2OptMove {
 
         // Update cost
         // solution.cost += added_i + added_j - removed_i - removed_j;
-        solution.cost = solution.recompute_cost_from_scratch(); // todo
+        solution.cost = solution.recompute_cost_from_scratch(); // todo fix properly
     }
 
     fn undo_last_move(solution: &mut TspSolution) {

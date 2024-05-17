@@ -176,6 +176,7 @@ fn get_cooling_schedule(
 }
 
 /// Cooling schedule for simulated annealing
+#[allow(dead_code)]
 pub enum CoolingSchedule {
     /// Arithmetic, new temp = old temp - c for constant c > 0
     Linear,
