@@ -25,9 +25,9 @@ fn main() {
 
     simulated_annealing::<Tsp2OptMove, TspSolution>(
         &mut solution,
-        1.0,
-        1_000_000,
-        1000,
-        crate::heuristics::simulated_annealing::CoolingSchedule::Geometric,
+        10_000_000,
+        20_000,
+        crate::heuristics::simulated_annealing::CoolingSchedule::Exponential,
+        false
     );
 }

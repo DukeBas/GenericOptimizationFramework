@@ -1,16 +1,23 @@
 use crate::solution::{LocalMove, Solution};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
+const STARTING_ACCEPTANCE_PROBABILITY_RANDOM: f64 = 0.5;
+const STARTING_ACCEPTANCE_PROBABILITY_GREEDY: f64 = 0.2;
+const ENDING_ACCEPTANCE_PROBABILITY: f64 = 10e-6;
+
+/// How often to report the status of the algorithm
+const REPORT_STATUS_TIMES: u32 = 20;
+
 // TODO add some mechanism to auto save best every so often
 /// Simulated annealing algorithm, automatically determines temperature.
 /// Cools after every iteration.
 /// TODO: currently only is for minimization problems, should be generalized?
 pub fn simulated_annealing<M, T>(
     solution: &mut T,
-    smallest_cost_difference: f64,
     num_iterations: u32,
     num_iterations_temperature_determining: u32,
     cooling_schedule: CoolingSchedule,
+    greedy_start: bool,
 ) where
     M: LocalMove<T>,
     T: Solution,
@@ -18,19 +25,36 @@ pub fn simulated_annealing<M, T>(
     // Determine starting temperature by doing random moves and checking variance in solution cost
     let mut old_cost;
     let mut total_cost_diff = 0.0;
+    let mut smallest_cost_diff = f64::INFINITY;
     for _ in 0..num_iterations_temperature_determining {
         old_cost = solution.get_cost();
+
         M::do_random_move(solution);
-        let cost_diff = solution.get_cost() - old_cost;
-        total_cost_diff += cost_diff.abs();
+
+        let cost_diff = (solution.get_cost() - old_cost).abs();
+
+        if cost_diff <= 0.0001 {
+            continue; // Makes sure 0 does not count for the smallest difference
+        }
+
+        total_cost_diff += cost_diff;
+
+        if cost_diff.abs() < smallest_cost_diff {
+            smallest_cost_diff = cost_diff.abs();
+        }
     }
     let avg_cost_diff = total_cost_diff / num_iterations_temperature_determining as f64;
-    let starting_accepting_probability: f64 = 0.5; // 0.2 is better for a greeding starting solution; todo?
+    let starting_accepting_probability: f64 = if greedy_start {
+        // Base starting acceptance on whether the initial solution is greedy or random
+        STARTING_ACCEPTANCE_PROBABILITY_GREEDY
+    } else {
+        STARTING_ACCEPTANCE_PROBABILITY_RANDOM
+    };
     let starting_temperature = -avg_cost_diff / starting_accepting_probability.ln();
 
     // Determine ending temperature
-    let ending_accepting_probability: f64 = 0.0000000001; // todo extract in some way
-    let ending_temperature = -smallest_cost_difference / ending_accepting_probability.ln();
+    let ending_accepting_probability: f64 = ENDING_ACCEPTANCE_PROBABILITY;
+    let ending_temperature = -smallest_cost_diff / ending_accepting_probability.ln();
 
     // Get the cooling schedule
     let cooling_schedule: Box<dyn Fn(f64) -> f64> = get_cooling_schedule(
@@ -39,6 +63,9 @@ pub fn simulated_annealing<M, T>(
         ending_temperature,
         num_iterations,
     );
+
+    // Determine at which iteration to start reporting the status
+    let report_status_iter = num_iterations / REPORT_STATUS_TIMES;
 
     // Print some info
     println!(
@@ -68,14 +95,7 @@ pub fn simulated_annealing<M, T>(
                 // Reject the move, undo it
                 M::undo_last_move(solution);
                 new_cost = previous_cost;
-                // println!("Rejected move with cost diff: {}, old {}, new {}", cost_diff, previous_cost, new_cost);
-            } else {
-                // println!("Accepted worse move with cost diff: {}, old {}, new {}", cost_diff, previous_cost, new_cost);
             }
-            
-        } else {
-            // Always accept if it is better
-            // println!("Accepted better move with cost diff: {}, old {}, new {}", cost_diff, previous_cost, new_cost);
         }
 
         // Update temperature
@@ -85,8 +105,14 @@ pub fn simulated_annealing<M, T>(
         previous_cost = new_cost;
 
         // print cost every so often
-        if it % 10000 == 0 {
-            println!("Cost: {} temp {}", solution.get_cost(), temperature);
+        if it % report_status_iter == 0 {
+            let percentage = (it as f64 / num_iterations as f64) * 100.0;
+            println!(
+                " {:.0}% Cost: {:.4} Temp: {:.4}",
+                percentage,
+                solution.get_cost(),
+                temperature
+            );
         }
 
         // Update best solution
@@ -102,11 +128,10 @@ pub fn simulated_annealing<M, T>(
     println!("Final cost: {}", solution.get_cost());
 }
 
-/// Metropolis rule for simulated annealing. Assumes cost difference is negative.
+/// Metropolis rule for simulated annealing.
 #[inline(always)]
 fn metropolis_rule(cost_difference: f64, temperature: f64) -> f64 {
-    // println!("metro {}", ((cost_difference).exp() / temperature)); // TODO: rescale based on problem? !!! use avg difference?
-    (cost_difference).exp() / temperature
+    (cost_difference / temperature).exp()
 }
 
 fn get_cooling_schedule(
@@ -115,12 +140,13 @@ fn get_cooling_schedule(
     end_temperature: f64,
     num_iterations: u32,
 ) -> Box<dyn Fn(f64) -> f64> {
-    match cooling_schedule { // todo, fix: currently ending temp is not the same as the one used in the schedule. Float precision?
+    match cooling_schedule {
+        // todo, fix: currently ending temp is not the same as the one used in the schedule. Float precision?
         CoolingSchedule::Linear => {
             let c = (start_temperature - end_temperature) / num_iterations as f64;
             Box::new(move |old_temp| old_temp - c)
         }
-        CoolingSchedule::Geometric => {
+        CoolingSchedule::Exponential => {
             let c = (end_temperature / start_temperature).powf(1.0 / num_iterations as f64);
             Box::new(move |old_temp| old_temp * c)
         }
@@ -129,8 +155,9 @@ fn get_cooling_schedule(
 
 /// Cooling schedule for simulated annealing
 pub enum CoolingSchedule {
-    /// New temp = old temp - c for constant c > 0
+    /// Arithmetic, new temp = old temp - c for constant c > 0
     Linear,
-    /// New temp = old temp * c for constant 0 < c < 1
-    Geometric,
+    /// Geometric, New temp = old temp * c for constant 0 < c < 1
+    Exponential,
+    // TODO: add more schedules, like constant thermodynamic https://www.fys.ku.dk/~andresen/BAhome/ownpapers/perm-annealSched.pdf adaptive https://arxiv.org/pdf/2002.06124
 }
