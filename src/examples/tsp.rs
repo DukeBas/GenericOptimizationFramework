@@ -4,7 +4,7 @@
 
 use crate::solution;
 use rand::{seq::SliceRandom, thread_rng};
-use solution::{InstanceReader, LocalMove, Solution};
+use solution::{InstanceReader, LocalRandomMove, Solution};
 use std::sync::Arc;
 use std::io::Write;
 
@@ -70,7 +70,7 @@ impl Solution for TspSolution {
 }
 
 pub struct TspNaiveMove;
-impl LocalMove<TspSolution> for TspNaiveMove {
+impl LocalRandomMove<TspSolution> for TspNaiveMove {
     fn do_random_move(solution: &mut TspSolution) {
         // Swap two random cities
         let i = rand::random::<usize>() % solution.perm.len();
@@ -99,7 +99,7 @@ impl LocalMove<TspSolution> for TspNaiveMove {
 }
 
 pub struct Tsp2OptMove; // Note: currently not _really_ 2Opt as it does not check all possible swaps
-impl LocalMove<TspSolution> for Tsp2OptMove {
+impl LocalRandomMove<TspSolution> for Tsp2OptMove {
     fn do_random_move(solution: &mut TspSolution) {
         // Reverse a random subsequence of cities
         let i = rand::random::<usize>() % solution.perm.len();

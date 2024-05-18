@@ -69,3 +69,4 @@ fn main() -> std::io::Result<()> {
 // Generalize minimize/maximise
 // Algorithm selection
 // Threading
+// Early stop still saves best solution

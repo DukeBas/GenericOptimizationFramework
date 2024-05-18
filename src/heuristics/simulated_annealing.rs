@@ -1,4 +1,4 @@
-use crate::solution::{LocalMove, Solution};
+use crate::solution::{LocalRandomMove, Solution};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 const STARTING_ACCEPTANCE_PROBABILITY_RANDOM: f64 = 0.5;
@@ -24,42 +24,15 @@ pub fn simulated_annealing<M, T>(
     cooling_schedule: CoolingSchedule,
     greedy_start: bool,
 ) where
-    M: LocalMove<T>,
+    M: LocalRandomMove<T>,
     T: Solution,
 {
-    // Determine starting temperature by doing random moves and checking variance in solution cost
-    let mut old_cost;
-    let mut total_cost_diff = 0.0;
-    let mut smallest_cost_diff = f64::INFINITY;
-    for _ in 0..num_iterations_temperature_determining {
-        old_cost = solution.get_cost();
-
-        M::do_random_move(solution);
-
-        let cost_diff = (solution.get_cost() - old_cost).abs();
-
-        if cost_diff <= 0.0001 {
-            continue; // Makes sure 0 does not count for the smallest difference
-        }
-
-        total_cost_diff += cost_diff;
-
-        if cost_diff.abs() < smallest_cost_diff {
-            smallest_cost_diff = cost_diff.abs();
-        }
-    }
-    let avg_cost_diff = total_cost_diff / num_iterations_temperature_determining as f64;
-    let starting_accepting_probability: f64 = if greedy_start {
-        // Base starting acceptance on whether the initial solution is greedy or random
-        STARTING_ACCEPTANCE_PROBABILITY_GREEDY
-    } else {
-        STARTING_ACCEPTANCE_PROBABILITY_RANDOM
-    };
-    let starting_temperature = -avg_cost_diff / starting_accepting_probability.ln();
-
-    // Determine ending temperature
-    let ending_accepting_probability: f64 = ENDING_ACCEPTANCE_PROBABILITY;
-    let ending_temperature = -smallest_cost_diff / ending_accepting_probability.ln();
+    // Determine starting and ending temperature
+    let (starting_temperature, ending_temperature) = determine_start_and_end_temp::<M, T>(
+        num_iterations_temperature_determining,
+        solution,
+        greedy_start,
+    );
 
     // Get the cooling schedule
     let cooling_schedule: Box<dyn Fn(f64) -> f64> = get_cooling_schedule(
@@ -117,7 +90,7 @@ pub fn simulated_annealing<M, T>(
                 " {:.0}% - Best cost: {:.4} Current cost: {:.4} Temp: {:.4} ",
                 percentage,
                 best_solution.get_cost(),
-                solution.get_cost(),                
+                solution.get_cost(),
                 temperature,
             );
 
@@ -148,6 +121,51 @@ pub fn simulated_annealing<M, T>(
 
     // Print final cost
     println!("Final cost: {}", solution.get_cost());
+}
+
+/// Automatically determine the starting and ending temperature for the simulated annealing algorithm.
+fn determine_start_and_end_temp<M, T: Solution>(
+    num_iterations_temperature_determining: u32,
+    solution: &mut T,
+    greedy_start: bool,
+) -> (f64, f64)
+where
+    M: LocalRandomMove<T>,
+{
+    // Determine starting temperature by doing random moves and checking variance in solution cost
+    let mut old_cost;
+    let mut total_cost_diff = 0.0;
+    let mut smallest_cost_diff = f64::INFINITY;
+    for _ in 0..num_iterations_temperature_determining {
+        old_cost = solution.get_cost();
+
+        M::do_random_move(solution);
+
+        let cost_diff = (solution.get_cost() - old_cost).abs();
+
+        if cost_diff <= 0.0001 {
+            continue; // Makes sure 0 does not count for the smallest difference
+        }
+
+        total_cost_diff += cost_diff;
+
+        if cost_diff.abs() < smallest_cost_diff {
+            smallest_cost_diff = cost_diff.abs();
+        }
+    }
+    let avg_cost_diff = total_cost_diff / num_iterations_temperature_determining as f64;
+    let starting_accepting_probability: f64 = if greedy_start {
+        // Base starting acceptance on whether the initial solution is greedy or random
+        STARTING_ACCEPTANCE_PROBABILITY_GREEDY
+    } else {
+        STARTING_ACCEPTANCE_PROBABILITY_RANDOM
+    };
+    let starting_temperature = -avg_cost_diff / starting_accepting_probability.ln();
+
+    // Determine ending temperature
+    let ending_accepting_probability: f64 = ENDING_ACCEPTANCE_PROBABILITY;
+    let ending_temperature = -smallest_cost_diff / ending_accepting_probability.ln();
+    (starting_temperature, ending_temperature)
 }
 
 /// Metropolis rule for simulated annealing.
