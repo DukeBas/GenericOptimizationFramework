@@ -13,6 +13,7 @@ pub trait Solution: Clone {
 pub trait LocalMove<T: Solution> {
     /// Modifies the solution in place to a random neighboring solution.
     /// For efficiency, the move should update the cost function in the process instead of recomputing it from scratch.
+    /// Needs to make sure all solutions are reachable by a sequence of moves.
     fn do_random_move(solution: &mut T);
 
     /// Undoes the last move done by do_random_move. Should reset the cost function as well if not recomputed from scratch.
