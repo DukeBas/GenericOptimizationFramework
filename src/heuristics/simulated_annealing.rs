@@ -122,7 +122,7 @@ pub fn simulated_annealing<M, T>(
             );
 
             // Update early return counter
-            if (solution.get_cost() - last_status_check_cost).abs() < FLOAT_PRECISION {
+            if (solution.get_cost() - last_status_check_cost).abs() < 999999999999999999.9 {
                 early_return_counter += 1;
 
                 // Early return if the same solution is found multiple times
