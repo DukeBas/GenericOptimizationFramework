@@ -4,6 +4,8 @@ mod solution;
 
 use std::fs;
 use std::num::NonZeroUsize;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
@@ -63,6 +65,15 @@ fn main() -> std::io::Result<()> {
         .interact_text()
         .unwrap();
 
+    // Set up Ctrl+C handler
+    let stop_signal: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    let stop_signal_clone = stop_signal.clone(); // necessary for borrowing in closure
+    ctrlc::set_handler(move || {
+        println!("Received stop signal, stopping all threads");
+        stop_signal_clone.store(true, std::sync::atomic::Ordering::SeqCst);
+    })
+    .expect("Error setting Ctrl-C handler");
+
     // Always SA for now TODO: make (list of) algo(s) configurable above
     let solution = INSTANCE_READER.read_instance(&instance_path, Some(instance_name));
 
@@ -71,21 +82,32 @@ fn main() -> std::io::Result<()> {
         .map(|i| {
             let solution = solution.clone();
             let name: String = instance_name.to_owned() + &i.to_string();
+            let stop_signal = stop_signal.clone();
             std::thread::spawn(move || {
-                infinite_loop(solution, number_of_iterations, &name);
+                infinite_loop(solution, number_of_iterations, &name, stop_signal);
             })
         })
         .collect();
 
+    // Print controls
+    println!("Press Ctrl+C to stop the program, all threads will stop and save their best solution to output/");
+
     // Wait for all threads to finish
     for handle in handles {
         handle.join().unwrap();
-    } // Should never reach here
+    } // Should only get here when Ctrl+C is pressed
+
+    println!("All threads stopped, exiting.");
 
     Ok(())
 }
 
-fn infinite_loop(mut solution: TspSolution, number_of_iterations: u32, process_name: &str) -> ! {
+fn infinite_loop(
+    mut solution: TspSolution,
+    number_of_iterations: u32,
+    process_name: &str,
+    stop_signal: Arc<AtomicBool>,
+) {
     // Main loop, run algo until cancelled
     loop {
         simulated_annealing::<Tsp2OptMove, TspSolution>(
@@ -95,8 +117,14 @@ fn infinite_loop(mut solution: TspSolution, number_of_iterations: u32, process_n
             crate::heuristics::simulated_annealing::CoolingSchedule::Exponential,
             false,
             process_name,
+            stop_signal.clone(),
         );
         solution.write_solution("output");
+
+        // Check stop signal
+        if stop_signal.load(std::sync::atomic::Ordering::SeqCst) {
+            break;
+        }
     }
 }
 

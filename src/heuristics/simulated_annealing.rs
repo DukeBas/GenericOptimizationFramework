@@ -1,3 +1,5 @@
+use std::sync::{atomic::AtomicBool, Arc};
+
 use crate::solution::{LocalRandomMove, Solution};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
@@ -24,6 +26,7 @@ pub fn simulated_annealing<M, T>(
     cooling_schedule: CoolingSchedule,
     greedy_start: bool,
     process_name: &str,
+    stop_signal: Arc<AtomicBool>,
 ) where
     M: LocalRandomMove<T>,
     T: Solution,
@@ -49,8 +52,8 @@ pub fn simulated_annealing<M, T>(
 
     // Print some info
     println!(
-        "Running simulated annealing for {} iterations with starting temperature: {} and ending temperature: {}",
-        num_iterations, starting_temperature, ending_temperature
+        "{} - Running simulated annealing for {} iterations with starting temperature: {} and ending temperature: {}",
+        process_name, num_iterations, starting_temperature, ending_temperature
     );
 
     // Main loop
@@ -84,7 +87,7 @@ pub fn simulated_annealing<M, T>(
         // Update previous cost
         previous_cost = new_cost;
 
-        // print cost every so often
+        // print cost every so often // TODO generalize this
         if it % REPORT_STATUS_EVERY_ITERATION == 0 {
             let percentage = (it as f64 / num_iterations as f64) * 100.0;
             println!(
@@ -96,6 +99,12 @@ pub fn simulated_annealing<M, T>(
                 temperature,
             );
 
+            // Check for stop signal
+            if stop_signal.load(std::sync::atomic::Ordering::Relaxed) {
+                println!("{} - Stopping early", process_name);
+                break;
+            }
+
             // Update early return counter
             if (solution.get_cost() - last_status_check_cost).abs() < FLOAT_PRECISION {
                 early_return_counter += 1;
@@ -103,7 +112,10 @@ pub fn simulated_annealing<M, T>(
                 // Early return if the same solution is found multiple times
                 if early_return_counter >= EARLY_RETURN_TIMES {
                     let percentage = (it as f64 / num_iterations as f64) * 100.0;
-                    println!("{} - Early return at iteration {} ({:.0}% done)", process_name, it, percentage);
+                    println!(
+                        "{} - Early return at iteration {} ({:.0}% done)",
+                        process_name, it, percentage
+                    );
                     break;
                 }
             } else {
