@@ -65,3 +65,7 @@ fn main() -> std::io::Result<()> {
 }
 
 // General function to run a heuristic on a solution, should take a solution
+//Todo:
+// Generalize minimize/maximise
+// Algorithm selection
+// Threading
