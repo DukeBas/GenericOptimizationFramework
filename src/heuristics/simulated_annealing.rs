@@ -6,7 +6,7 @@ const STARTING_ACCEPTANCE_PROBABILITY_GREEDY: f64 = 0.2;
 const ENDING_ACCEPTANCE_PROBABILITY: f64 = 10e-6;
 
 /// How often to report the status of the algorithm
-const REPORT_STATUS_EVERY_ITERATION: u32 = 1_000_000;
+const REPORT_STATUS_EVERY_ITERATION: u32 = 10_000_000;
 
 /// How many status checks need to be the same before early returning
 const EARLY_RETURN_TIMES: u32 = 5;
@@ -23,6 +23,7 @@ pub fn simulated_annealing<M, T>(
     num_iterations_temperature_determining: u32,
     cooling_schedule: CoolingSchedule,
     greedy_start: bool,
+    process_name: &str,
 ) where
     M: LocalRandomMove<T>,
     T: Solution,
@@ -87,7 +88,8 @@ pub fn simulated_annealing<M, T>(
         if it % REPORT_STATUS_EVERY_ITERATION == 0 {
             let percentage = (it as f64 / num_iterations as f64) * 100.0;
             println!(
-                " {:.0}% - Best cost: {:.4} Current cost: {:.4} Temp: {:.4} ",
+                " {} - {:.0}% - Best cost: {:.4} Current cost: {:.4} Temp: {:.4} ",
+                process_name,
                 percentage,
                 best_solution.get_cost(),
                 solution.get_cost(),
@@ -101,7 +103,7 @@ pub fn simulated_annealing<M, T>(
                 // Early return if the same solution is found multiple times
                 if early_return_counter >= EARLY_RETURN_TIMES {
                     let percentage = (it as f64 / num_iterations as f64) * 100.0;
-                    println!("Early return at iteration {} ({:.0}% done)", it, percentage);
+                    println!("{} - Early return at iteration {} ({:.0}% done)", process_name, it, percentage);
                     break;
                 }
             } else {
@@ -120,7 +122,7 @@ pub fn simulated_annealing<M, T>(
     *solution = best_solution;
 
     // Print final cost
-    println!("Final cost: {}", solution.get_cost());
+    println!("{} - Final cost: {}", process_name, solution.get_cost());
 }
 
 /// Automatically determine the starting and ending temperature for the simulated annealing algorithm.
