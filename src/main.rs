@@ -6,17 +6,16 @@ use std::fs;
 
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
+use examples::adhoc::{AdHocInstanceReader, AdHocMove, AdHocSolution};
 
 use crate::heuristics::simulated_annealing::simulated_annealing;
-
-use crate::examples::tsp::{Tsp2OptMove, TspInstanceReader, TspSolution};
 use crate::solution::{InstanceReader, Solution};
 
 /// Path to the folder containing the problem instances
 const DATASET_PATH: &str = "./input/";
 
 /// Problem instance reader to use
-const INSTANCE_READER: TspInstanceReader = TspInstanceReader {};
+const INSTANCE_READER: AdHocInstanceReader = AdHocInstanceReader {};
 
 fn main() -> std::io::Result<()> {
     // Read all instances from the input folder
@@ -53,7 +52,7 @@ fn main() -> std::io::Result<()> {
 
     // Main loop, run algo until cancelled
     loop {
-        simulated_annealing::<Tsp2OptMove, TspSolution>(
+        simulated_annealing::<AdHocMove, AdHocSolution>(
             &mut solution,
             number_of_iterations,
             20_000,
