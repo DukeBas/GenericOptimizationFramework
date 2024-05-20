@@ -57,7 +57,7 @@ pub fn simulated_annealing<M, T>(
     // Main loop
     let mut temperature = starting_temperature;
     let mut previous_cost = solution.get_cost();
-    let mut small_rng = SmallRng::from_entropy();
+    let mut small_rng = SmallRng::from_entropy(); // StdRng is about 4x slower when tested
     let mut best_solution = solution.clone();
     for it in 0..num_iterations {
         sa_core::<M, T>(solution, &mut previous_cost, &mut small_rng, temperature);
