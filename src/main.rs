@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
-use heuristics::setup_simulated_annealing;
+use heuristics::{setup_simulated_annealing, setup_tempering};
 
 use crate::examples::tsp::{Tsp2OptMove, TspInstanceReader, TspSolution};
 use crate::solution::InstanceReader;
@@ -19,9 +19,6 @@ use strum_macros::{Display, EnumIter};
 
 /// Path to the folder containing the problem instances
 const DATASET_PATH: &str = "./input/";
-
-/// Default number of iterations to run the algorithm for
-const DEFAULT_NUMBER_OF_ITERATIONS: u32 = 500_000_000;
 
 /// Define solution type and move. Override these for your problem!
 type MoveType = Tsp2OptMove;
@@ -76,6 +73,9 @@ fn main() -> std::io::Result<()> {
                 solution,
                 stop_signal,
             );
+        }
+        Heuristics::Tempering => {
+            setup_tempering::<MoveType, SolutionType>(instance_name, solution, stop_signal);
         }
         _ => {
             println!("Heuristic not implemented yet");

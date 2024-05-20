@@ -1,3 +1,4 @@
+use core::num;
 use std::ops::ControlFlow;
 
 use crate::{
@@ -104,7 +105,7 @@ pub fn simulated_annealing<M, T>(
 }
 
 /// Core of the simulated annealing algorithm.
-fn sa_core<M, T>(
+pub fn sa_core<M, T>(
     solution: &mut T,
     previous_cost: &mut f64,
     small_rng: &mut SmallRng,
@@ -132,13 +133,13 @@ fn sa_core<M, T>(
         }
     }
 
-    // Update previous cost, to not recompute it. 
+    // Update previous cost, to not recompute it.
     // Only matters if cost function is only implemented as doing it from scratch, if it is cached this is not necessary but also not harmful.
     *previous_cost = new_cost;
 }
 
 /// Automatically determine the starting and ending temperature for the simulated annealing algorithm.
-fn determine_start_and_end_temp<M, T: Solution>(
+pub fn determine_start_and_end_temp<M, T: Solution>(
     num_iterations_temperature_determining: u32,
     solution: &mut T,
     greedy_start: bool,
@@ -188,20 +189,21 @@ fn metropolis_rule(cost_difference: f64, temperature: f64) -> f64 {
     (cost_difference / temperature).exp()
 }
 
-fn get_cooling_schedule(
+pub fn get_cooling_schedule(
     cooling_schedule: CoolingSchedule,
     start_temperature: f64,
     end_temperature: f64,
     num_iterations: u32,
 ) -> Box<dyn Fn(f64) -> f64> {
+    let num_iterations = (num_iterations - 1) as f64; // acount for the first iteration being at start temp
     match cooling_schedule {
         // todo, fix: currently ending temp is not the same as the one used in the schedule. Float precision?
         CoolingSchedule::Linear => {
-            let c = (start_temperature - end_temperature) / num_iterations as f64;
+            let c = (start_temperature - end_temperature) / num_iterations;
             Box::new(move |old_temp| old_temp - c)
         }
         CoolingSchedule::Exponential => {
-            let c = (end_temperature / start_temperature).powf(1.0 / num_iterations as f64);
+            let c = (end_temperature / start_temperature).powf(1.0 / num_iterations);
             Box::new(move |old_temp| old_temp * c)
         }
     }

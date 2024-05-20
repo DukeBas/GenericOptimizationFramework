@@ -6,12 +6,15 @@ use std::{
 use dialoguer::{theme::ColorfulTheme, Input};
 
 use crate::{
-    get_thread_count, solution::{LocalRandomMove, Solution}, DEFAULT_NUMBER_OF_ITERATIONS
+    get_thread_count,
+    solution::{LocalRandomMove, Solution},
 };
 
+use crate::heuristics::tempering::tempering;
 use simulated_annealing::simulated_annealing;
 
 pub mod simulated_annealing;
+pub mod tempering;
 
 /// Stop signal for all threads
 pub type StopSignal = Arc<AtomicBool>;
@@ -21,6 +24,9 @@ const EARLY_RETURN_TIMES: u32 = 5;
 
 /// Precision for floating point numbers
 const FLOAT_PRECISION: f64 = 10e-6;
+
+/// Default number of iterations to run iterative algorithms for
+const DEFAULT_NUMBER_OF_ITERATIONS: u32 = 500_000_000;
 
 /// Function to handle early return in heuristics
 fn check_early_return<T>(
@@ -70,7 +76,7 @@ pub fn setup_simulated_annealing<M: LocalRandomMove<T>, T: Solution + 'static>(
     let num_cpus = get_thread_count();
 
     // Ask for the number of threads to utilize
-    let number_of_threads = ask_user_num_threads(num_cpus);
+    let number_of_threads = ask_user_num_threads(num_cpus, None);
 
     // Ask the user for the number of iterations
     let number_of_iterations = ask_user_num_iterations();
@@ -104,6 +110,43 @@ pub fn setup_simulated_annealing<M: LocalRandomMove<T>, T: Solution + 'static>(
         handle.join().unwrap();
     }
     // Should only get here when Ctrl+C is pressed
+
+    println!("All threads stopped, exiting.");
+}
+
+pub fn setup_tempering<M: LocalRandomMove<T>, T: Solution + 'static>(
+    instance_name: &str,
+    solution: T,
+    stop_signal: StopSignal,
+) {
+    // Get number of threads of the system
+    let num_cpus = get_thread_count();
+
+    // Ask for the number of threads to utilize
+    let number_of_threads = ask_user_num_threads(num_cpus, Some("Number of threads (enter to use default). Tempering requires at least 2 threads but only makes sense with more."));
+
+    // necessary for borrowing in closure
+    let stop_signal_clone = stop_signal.clone();
+
+    ctrlc::set_handler(move || {
+        println!("Received stop signal, stopping all threads");
+        stop_signal_clone.store(true, std::sync::atomic::Ordering::SeqCst);
+    })
+    .expect("Error setting Ctrl-C handler");
+
+    // Print controls
+    println!("Press Ctrl+C to stop the program, all threads will stop and the best solution will be saved to output/");
+
+    // Do tempering
+    let mut solution = solution.clone();
+    tempering::<M, T>(
+        &mut solution,
+        number_of_threads,
+        50_000,
+        crate::heuristics::simulated_annealing::CoolingSchedule::Linear,
+        instance_name,
+        stop_signal.clone(),
+    );
 
     println!("All threads stopped, exiting.");
 }
@@ -144,12 +187,12 @@ fn ask_user_num_iterations() -> u32 {
     number_of_iterations
 }
 
-fn ask_user_num_threads(default_num_cpus: u32) -> u32 {
+fn ask_user_num_threads(default_num_cpus: u32, prompt: Option<&str>) -> u32 {
+    let prompt = prompt.unwrap_or("Number of threads (enter to use default)");
     let number_of_threads: u32 = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Number of threads (enter to use default)")
+        .with_prompt(prompt)
         .default(default_num_cpus)
         .interact_text()
         .unwrap();
     number_of_threads
 }
-
