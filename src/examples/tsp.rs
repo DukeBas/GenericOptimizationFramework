@@ -60,9 +60,10 @@ impl Solution for TspSolution {
 
         let mut file = std::fs::File::create(file_path.clone()).expect("Could not save solution to file!!!");
         for city in &self.perm {
-            // TODO: bit of a weird way to output, indices in permutation would make more sense
+            // Get index of city in the instance
             let (x, y) = self.instance.points[*city];
-            writeln!(file, "{} {}", x, y).expect("Could not write to file!!!");
+            let index = self.instance.points.iter().position(|&p| p == (x, y)).unwrap();
+            writeln!(file, "{}", index).expect("Could not write to file");
         }    
 
         println!("Solution written to {}", file_path);
