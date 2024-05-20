@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
+use heuristics::StopSignal;
 
 use crate::heuristics::simulated_annealing::simulated_annealing;
 
@@ -106,7 +107,7 @@ fn infinite_loop(
     mut solution: TspSolution,
     number_of_iterations: u32,
     process_name: &str,
-    stop_signal: Arc<AtomicBool>,
+    stop_signal: StopSignal,
 ) {
     // Main loop, run algo until cancelled
     loop {
@@ -128,8 +129,10 @@ fn infinite_loop(
     }
 }
 
-// General function to run a heuristic on a solution, should take a solution
+
 //Todo:
+// General function to run a heuristic on a solution, should take a solution -> decompose SA with outer being the saving as well. Then reuse this for...
+    // tempering
 // Generalize minimize/maximise
 // Algorithm selection
-// Early stop still saves best solution
+// Make higher level reading api    -> x,y,z= ...

@@ -1,7 +1,12 @@
-use std::sync::{atomic::AtomicBool, Arc};
+use std::ops::ControlFlow;
 
-use crate::solution::{LocalRandomMove, Solution};
+use crate::{
+    heuristics::check_early_return,
+    solution::{LocalRandomMove, Solution},
+};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
+
+use super::StopSignal;
 
 const STARTING_ACCEPTANCE_PROBABILITY_RANDOM: f64 = 0.5;
 const STARTING_ACCEPTANCE_PROBABILITY_GREEDY: f64 = 0.2;
@@ -9,11 +14,6 @@ const ENDING_ACCEPTANCE_PROBABILITY: f64 = 10e-6;
 
 /// How often to report the status of the algorithm
 const REPORT_STATUS_EVERY_ITERATION: u32 = 10_000_000;
-
-/// How many status checks need to be the same before early returning
-const EARLY_RETURN_TIMES: u32 = 5;
-
-const FLOAT_PRECISION: f64 = 10e-6;
 
 // TODO add some mechanism to auto save best every so often
 /// Simulated annealing algorithm, automatically determines temperature.
@@ -26,7 +26,7 @@ pub fn simulated_annealing<M, T>(
     cooling_schedule: CoolingSchedule,
     greedy_start: bool,
     process_name: &str,
-    stop_signal: Arc<AtomicBool>,
+    stop_signal: StopSignal,
 ) where
     M: LocalRandomMove<T>,
     T: Solution,
@@ -87,7 +87,7 @@ pub fn simulated_annealing<M, T>(
         // Update previous cost
         previous_cost = new_cost;
 
-        // print cost every so often // TODO generalize this
+        // print cost every so often
         if it % REPORT_STATUS_EVERY_ITERATION == 0 {
             let percentage = (it as f64 / num_iterations as f64) * 100.0;
             println!(
@@ -99,28 +99,16 @@ pub fn simulated_annealing<M, T>(
                 temperature,
             );
 
-            // Check for stop signal
-            if stop_signal.load(std::sync::atomic::Ordering::Relaxed) {
-                println!("{} - Stopping early", process_name);
+            if let ControlFlow::Break(_) = check_early_return(
+                &stop_signal,
+                process_name,
+                solution,
+                &mut last_status_check_cost,
+                &mut early_return_counter,
+                it,
+                num_iterations,
+            ) {
                 break;
-            }
-
-            // Update early return counter
-            if (solution.get_cost() - last_status_check_cost).abs() < FLOAT_PRECISION {
-                early_return_counter += 1;
-
-                // Early return if the same solution is found multiple times
-                if early_return_counter >= EARLY_RETURN_TIMES {
-                    let percentage = (it as f64 / num_iterations as f64) * 100.0;
-                    println!(
-                        "{} - Early return at iteration {} ({:.0}% done)",
-                        process_name, it, percentage
-                    );
-                    break;
-                }
-            } else {
-                early_return_counter = 0;
-                last_status_check_cost = solution.get_cost();
             }
         }
 
