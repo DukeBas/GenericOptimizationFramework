@@ -15,10 +15,8 @@ const ENDING_ACCEPTANCE_PROBABILITY: f64 = 10e-6;
 /// How often to report the status of the algorithm
 const REPORT_STATUS_EVERY_ITERATION: u32 = 10_000_000;
 
-// TODO add some mechanism to auto save best every so often
 /// Simulated annealing algorithm, automatically determines temperature.
 /// Cools after every iteration.
-/// TODO: currently only is for minimization problems, should be generalized?
 pub fn simulated_annealing<M, T>(
     solution: &mut T,
     num_iterations: u32,
@@ -62,32 +60,12 @@ pub fn simulated_annealing<M, T>(
     let mut small_rng = SmallRng::from_entropy();
     let mut best_solution = solution.clone();
     for it in 0..num_iterations {
-        // Do the move
-        M::do_random_move(solution);
-
-        // Check new cost again the one of the previous iteration
-        let mut new_cost = solution.get_cost();
-        let cost_diff = previous_cost - new_cost;
-
-        // Check if we accept the move, always accept if it is better
-        if cost_diff < 0.0 {
-            // Maybe reject the move
-            // Get a random number in [0, 1)
-            let random_number: f64 = small_rng.gen();
-            if random_number > metropolis_rule(cost_diff, temperature) {
-                // Reject the move, undo it
-                M::undo_last_move(solution);
-                new_cost = previous_cost;
-            }
-        }
+        sa_core::<M, T>(solution, &mut previous_cost, &mut small_rng, temperature);
 
         // Update temperature
         temperature = cooling_schedule(temperature);
 
-        // Update previous cost
-        previous_cost = new_cost;
-
-        // print cost every so often
+        // print cost every so often, check for early return
         if it % REPORT_STATUS_EVERY_ITERATION == 0 {
             let percentage = (it as f64 / num_iterations as f64) * 100.0;
             println!(
@@ -123,6 +101,40 @@ pub fn simulated_annealing<M, T>(
 
     // Print final cost
     println!("{} - Final cost: {}", process_name, solution.get_cost());
+}
+
+/// Core of the simulated annealing algorithm.
+fn sa_core<M, T>(
+    solution: &mut T,
+    previous_cost: &mut f64,
+    small_rng: &mut SmallRng,
+    temperature: f64,
+) where
+    M: LocalRandomMove<T>,
+    T: Solution,
+{
+    // Do the move
+    M::do_random_move(solution);
+
+    // Check new cost again the one of the previous iteration
+    let mut new_cost = solution.get_cost();
+    let cost_diff = *previous_cost - new_cost;
+
+    // Check if we accept the move, always accept if it is better
+    if cost_diff < 0.0 {
+        // Maybe reject the move
+        // Get a random number in [0, 1)
+        let random_number: f64 = small_rng.gen();
+        if random_number > metropolis_rule(cost_diff, temperature) {
+            // Reject the move, undo it
+            M::undo_last_move(solution);
+            new_cost = *previous_cost;
+        }
+    }
+
+    // Update previous cost, to not recompute it. 
+    // Only matters if cost function is only implemented as doing it from scratch, if it is cached this is not necessary but also not harmful.
+    *previous_cost = new_cost;
 }
 
 /// Automatically determine the starting and ending temperature for the simulated annealing algorithm.
