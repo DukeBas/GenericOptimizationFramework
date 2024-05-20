@@ -8,22 +8,27 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Input, Select};
-use heuristics::StopSignal;
-
-use crate::heuristics::simulated_annealing::simulated_annealing;
+use dialoguer::Select;
+use heuristics::setup_simulated_annealing;
 
 use crate::examples::tsp::{Tsp2OptMove, TspInstanceReader, TspSolution};
-use crate::solution::{InstanceReader, Solution};
+use crate::solution::InstanceReader;
+
+use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter};
 
 /// Path to the folder containing the problem instances
 const DATASET_PATH: &str = "./input/";
 
-/// Problem instance reader to use
-const INSTANCE_READER: TspInstanceReader = TspInstanceReader {};
-
 /// Default number of iterations to run the algorithm for
 const DEFAULT_NUMBER_OF_ITERATIONS: u32 = 500_000_000;
+
+/// Define solution type and move. Override these for your problem!
+type MoveType = Tsp2OptMove;
+type SolutionType = TspSolution;
+
+/// Problem instance reader to use
+const INSTANCE_READER: TspInstanceReader = TspInstanceReader {};
 
 fn main() -> std::io::Result<()> {
     // Read all instances from the input folder
@@ -48,91 +53,55 @@ fn main() -> std::io::Result<()> {
         .next()
         .unwrap();
 
-    // Get number of threads of the system
-    let num_cpus = std::thread::available_parallelism();
-    let num_cpus = num_cpus.unwrap_or(NonZeroUsize::new(1).unwrap()).get() as u32;
-
-    // Ask for the number of threads to utilize
-    let number_of_threads: u32 = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Number of threads (enter to use default)")
-        .default(num_cpus)
-        .interact_text()
+    let heuristics = Heuristics::iter().collect::<Vec<_>>();
+    let heuristic_choice = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Select a heuristic")
+        .items(&heuristics)
+        .default(0)
+        .interact()
         .unwrap();
-
-    // Ask the user for the number of iterations
-    let number_of_iterations: u32 = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Number of iterations (enter to use default)")
-        .default((DEFAULT_NUMBER_OF_ITERATIONS as u32).into())
-        .interact_text()
-        .unwrap();
+    let heuristic = &heuristics[heuristic_choice];
 
     // Set up Ctrl+C handler
     let stop_signal: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-    let stop_signal_clone = stop_signal.clone(); // necessary for borrowing in closure
-    ctrlc::set_handler(move || {
-        println!("Received stop signal, stopping all threads");
-        stop_signal_clone.store(true, std::sync::atomic::Ordering::SeqCst);
-    })
-    .expect("Error setting Ctrl-C handler");
 
-    // Always SA for now TODO: make (list of) algo(s) configurable above
+    // Setup starting solution
     let solution = INSTANCE_READER.read_instance(&instance_path, Some(instance_name));
 
-    // Spawn threads
-    let handles: Vec<_> = (0..number_of_threads)
-        .map(|i| {
-            let solution = solution.clone();
-            let name: String = instance_name.to_owned() + &i.to_string();
-            let stop_signal = stop_signal.clone();
-            std::thread::spawn(move || {
-                infinite_loop(solution, number_of_iterations, &name, stop_signal);
-            })
-        })
-        .collect();
-
-    // Print controls
-    println!("Press Ctrl+C to stop the program, all threads will stop and save their best solution to output/");
-
-    // Wait for all threads to finish
-    for handle in handles {
-        handle.join().unwrap();
-    } // Should only get here when Ctrl+C is pressed
-
-    println!("All threads stopped, exiting.");
+    // Run the selected heuristic
+    match heuristic {
+        Heuristics::SimulatedAnnealing => {
+            setup_simulated_annealing::<MoveType, SolutionType>(
+                instance_name,
+                solution,
+                stop_signal,
+            );
+        }
+        _ => {
+            println!("Heuristic not implemented yet");
+        }
+    }
 
     Ok(())
 }
 
-fn infinite_loop(
-    mut solution: TspSolution,
-    number_of_iterations: u32,
-    process_name: &str,
-    stop_signal: StopSignal,
-) {
-    // Main loop, run algo until cancelled
-    loop {
-        simulated_annealing::<Tsp2OptMove, TspSolution>(
-            &mut solution,
-            number_of_iterations,
-            20_000,
-            crate::heuristics::simulated_annealing::CoolingSchedule::Exponential,
-            false,
-            process_name,
-            stop_signal.clone(),
-        );
-        solution.write_solution("output");
-
-        // Check stop signal
-        if stop_signal.load(std::sync::atomic::Ordering::SeqCst) {
-            break;
-        }
-    }
+/// Gets the number of system threads
+fn get_thread_count() -> u32 {
+    let num_cpus = std::thread::available_parallelism();
+    let num_cpus = num_cpus.unwrap_or(NonZeroUsize::new(1).unwrap()).get() as u32;
+    num_cpus
 }
 
+#[derive(EnumIter, Display, Clone, Copy, Debug)]
+enum Heuristics {
+    SimulatedAnnealing,
+    Tempering,
+    TabuSearch,
+    AntColonyOptimization,
+    ParticleSwarmOptimization,
+}
 
 //Todo:
 // General function to run a heuristic on a solution, should take a solution -> decompose SA with outer being the saving as well. Then reuse this for...
-    // tempering
-// Generalize minimize/maximise
-// Algorithm selection
+// tempering
 // Make higher level reading api    -> x,y,z= ...

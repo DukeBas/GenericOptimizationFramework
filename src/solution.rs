@@ -1,4 +1,4 @@
-pub trait Solution: Clone {
+pub trait Solution: Clone + Send {
     /// Returns the cost of the solution. Could be recomputed from scratch or done more smartly based on previous cost.
     fn get_cost(&mut self) -> f64;
 
