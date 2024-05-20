@@ -56,7 +56,7 @@ impl Solution for TspSolution {
 
     fn write_solution(&self, file_location: &str) {
         // File name will be dataset name + cost + .out
-        let file_path = format!("{}/{}-{:.4}.out", file_location, self.instance.dataset_name, self.cost); // todo make more robust
+        let file_path = format!("{}/{}-{:.4}.out", file_location, self.instance.dataset_name, self.cost);
 
         let mut file = std::fs::File::create(file_path.clone()).expect("Could not save solution to file!!!");
         for city in &self.perm {
